@@ -1,4 +1,3 @@
-import pdb
 import smtplib
 import email
 import mimetypes
@@ -34,9 +33,11 @@ threshold = 10
 sensitivity = 180
 forceCapture = True
 forceCaptureTime = 60 * 60 # Once an hour
-filepath = "/home/pi/images/"
-filenamePrefix = "pgm"
-fileType = "jpg"
+filepath = "/home/pi/video/"
+filenamePrefix = "cic"
+fileTypeImage = "jpg"
+fileTypeH264 = "h264"
+fileTypeVideo = "mp4"
 # File photo size settings
 saveWidth = 800
 saveHeight = 600
@@ -74,39 +75,48 @@ def captureTestImage():
     return im, buffer
     # Save a full size image to disk
 def saveVideo(width, height, diskSpaceToReserve):
+    print "starting video capture"
     keepDiskSpaceFree(diskSpaceToReserve)
     time = datetime.now()
-    filename = filenamePrefix + "-%04d_%02d_%02d-%02d%02d%02d" % (time.year, time.month, time.day, time.hour, time.minute, time.second)+ ".h264"
-    fullfilename = filepath + filename
-    camera.start_recording(fullfilename, format='h264', splitter_port=2, resize=(320, 240))
-    camera.wait_recording(timeout=3, splitter_port=2)
-    try:
-        camera.stop_recording(splitter_port=2)
-    except Exception:
-        pass
-def saveImage(width, height, diskSpaceToReserve):
-    keepDiskSpaceFree(diskSpaceToReserve)
-    time = datetime.now()
-    filename = filenamePrefix + "-%04d_%02d_%02d-%02d%02d%02d" % (time.year, time.month, time.day, time.hour, time.minute, time.second)+ "." + fileType
-    fullfilename = filepath + filename
-    # camera.resolution = (saveWidth, saveHeight)
-    camera.capture(fullfilename, format='jpeg', use_video_port=True)
-    # subprocess.call("echo %s > temp.out" % filename, shell=True)
-    # subprocess.call("/home/pi/Dropbox-Uploader/dropbox_uploader.sh upload %s %s" % (fullfilename, filename), shell=True)
-    # msg = email.MIMEMultipart.MIMEMultipart()
-    # msg['From'] = fromaddr
-    # msg['To'] = tolist
-    # msg['Subject'] = sub
-    # msg.attach(MIMEText('\nsent via python', 'plain'))
-    # server.sendmail(user,tolist,msg.as_string())
-    # print "Captured image: %s" % filename
-    # camera.wait_recording(60)
-    # Keep free space above given level
+    camera.resolution = (1280, 720)
+    camera.framerate = 30
+    filename = filenamePrefix + "%04d%02d%02d-%02d%02d%02d" % (time.year, time.month, time.day, time.hour, time.minute, time.second)+ "."
+    tempfilename = filepath + filename + fileTypeH264
+    fullfilename = filepath + filename + fileTypeVideo
+    camera.start_recording(tempfilename, format='h264')
+    camera.wait_recording(timeout=captureDuration)
+    camera.stop_recording()
+    print "end video capture: " + tempfilename
+    subprocess.call("MP4Box -add %s %s" % (tempfilename, fullfilename), shell=True)
+    print "video converted: " + fullfilename
+    subprocess.Popen("/home/pi/Dropbox-Uploader/dropbox_uploader.sh upload %s %s" % (fullfilename, filename+fileTypeVideo), shell=True)
+    print "uploading to dropbox: " + filename+fileTypeVideo
+    os.remove(tempfilename)
+    print "temp file removed"
+# def saveImage(width, height, diskSpaceToReserve):
+#     keepDiskSpaceFree(diskSpaceToReserve)
+#     time = datetime.now()
+#     filename = filenamePrefix + "%04d%02d%02d-%02d%02d%02d" % (time.year, time.month, time.day, time.hour, time.minute, time.second)+ "." + fileTypeImage
+#     fullfilename = filepath + filename
+#     camera.resolution = (saveWidth, saveHeight)
+#     camera.capture(fullfilename, format='jpeg', use_video_port=True)
+#     # subprocess.call("echo %s > temp.out" % filename, shell=True)
+#     subprocess.Popen("/home/pi/Dropbox-Uploader/dropbox_uploader.sh upload %s %s" % (fullfilename, filename), shell=True)
+#     # msg = email.MIMEMultipart.MIMEMultipart()
+#     # msg['From'] = fromaddr
+#     # msg['To'] = tolist
+#     # msg['Subject'] = sub
+#     # msg.attach(MIMEText('\nsent via python', 'plain'))
+#     # server.sendmail(user,tolist,msg.as_string())
+#     # print "Captured image: %s" % filename
+#     # camera.wait_recording(60)
+#     # Keep free space above given level
 def keepDiskSpaceFree(bytesToReserve):
     if (getFreeSpace() < bytesToReserve):
         for filename in sorted(os.listdir(filepath)):
-            if filename.startswith(filenamePrefix) and filename.endswith("." + fileType):
+            if filename.startswith(filenamePrefix) and filename.endswith("." + fileTypeVideo):
                 os.remove(filepath + filename)
+                subprocess.Popen("/home/pi/Dropbox-Uploader/dropbox_uploader.sh delete %s" % (filename), shell=True)
                 # print "Deleted %s to avoid filling disk" % filename
                 if (getFreeSpace() > bytesToReserve):
                     return
@@ -117,10 +127,10 @@ def getFreeSpace():
     return du
     #---------------------------------------------------------
     # Start capturing video
-camera.resolution = (320, 240)
-camera.framerate = 24
-# camera.resolution = (1024, 768)
-camera.start_recording(sys.stdout, format='h264')
+# camera.resolution = (320, 240)
+# camera.framerate = 10
+# camera.start_recording(sys.stdout, format='h264')
+# camera.capture_continuous(sys.stdout, format='yuv', use_video_port=True, resize=(320x240))
 # Get first image
 time.sleep(3)
 image1, buffer1 = captureTestImage()
@@ -144,7 +154,7 @@ while (True):
         pass
             # Count changed pixels
     changedPixels = 0
-    takePicture = False
+    takeVideo = False
     for x in xrange(0, 100):
         # Scan one line of image then check sensitivity for movement
         for y in xrange(0, 75):
@@ -155,7 +165,7 @@ while (True):
         # Changed logic - If movement sensitivity exceeded then
         # Save image and Exit before full image scan complete
             if (changedPixels > sensitivity):
-                takePicture = True
+                takeVideo = True
                 # lastCapture = time.time()
                 # saveVideo(saveWidth, saveHeight, diskSpaceToReserve)
                 # saveImage(saveWidth, saveHeight, diskSpaceToReserve)
@@ -169,14 +179,15 @@ while (True):
     # Check force capture
     if forceCapture:
         if time.time() - lastCapture > forceCaptureTime:
-            takePicture = True
+            takeVideo = True
     # take a picture or video
-    if takePicture:
+    if takeVideo:
         lastCapture = time.time()
-        saveImage(saveWidth, saveHeight, diskSpaceToReserve)
-        for i in range(DurationSetting):
-            time.sleep(delayBtCapture)
-            saveImage(saveWidth, saveHeight, diskSpaceToReserve)
+        saveVideo(saveWidth, saveHeight, diskSpaceToReserve)
+        # saveImage(saveWidth, saveHeight, diskSpaceToReserve)
+        # for i in range(DurationSetting):
+        #     time.sleep(delayBtCapture)
+        #     saveImage(saveWidth, saveHeight, diskSpaceToReserve)
         try:
             image2, buffer2 = captureTestImage()
         except Exception:
