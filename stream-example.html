@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta name="viewport" content="width=320, initial-scale=1"/>
+	<title>jsmpeg streaming</title>
+	<style type="text/css">
+		body {
+			background: #333;
+			text-align: center;
+			margin-top: 10%;
+		}
+	</style>
+	<script type="text/javascript">
+    window.debugMode = false;
+  </script>
+
+
+</head>
+<body>
+	<canvas id="videoCanvas" width="640" height="480">
+		<p>
+			Please use a browser that supports the Canvas Element, like
+			<a href="http://www.google.com/chrome">Chrome</a>,
+			<a href="http://www.mozilla.com/firefox/">Firefox</a>,
+			<a href="http://www.apple.com/safari/">Safari</a> or Internet Explorer 10
+		</p>
+	</canvas>
+
+  <!-- Bootstrap core JavaScript
+  ================================================== -->
+  <!-- Placed at the end of the document so the pages load faster -->
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script src="http://yui.yahooapis.com/3.15.0/build/yui/yui-min.js"></script>
+  <script src="socket.io/socket.io.js"></script>
+  <script src="jsmpg.js"></script>
+  <!-- https://github.com/joewalnes/reconnecting-websocket -->
+  <script src="reconnecting-websocket.js"></script>
+  // <script type="text/javascript">
+  //   setupSocket();
+  // </script>
+
+  <script type="text/javascript">
+      // Show loading notice
+      window.canvas = document.getElementById('videoCanvas');
+      var ctx = window.canvas.getContext('2d');
+      ctx.fillStyle = '#444';
+      ctx.fillText('Loading...', window.canvas.width/2-30, window.canvas.height/3);
+
+      // Setup the WebSocket connection and start the player
+      window.webcam_socket = new WebSocket('ws://localhost:8084');
+      var player = new jsmpeg(window.webcam_socket, {canvas:window.canvas});
+    </script>
+
+	// <script type="text/javascript">
+	// 	// Show loading notice
+	// 	var canvas = document.getElementById('videoCanvas');
+	// 	var ctx = canvas.getContext('2d');
+	// 	ctx.fillStyle = '#444';
+	// 	ctx.fillText('Loading...', canvas.width/2-30, canvas.height/3);
+
+	// 	// Setup the WebSocket connection and start the player
+	// 	// var client = io.connect( 'ws://localhost:8084/' );
+	// 	var client = new ReconnectingWebSocket('ws://localhost:8084/');
+	// 	var player = new jsmpeg(client, {canvas:canvas});
+	// </script>
+</body>
+</html>
